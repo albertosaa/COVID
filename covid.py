@@ -101,14 +101,14 @@ def R0(gamma1,gamma2):
 
 #
 # Data da análise. Será o nome do arquivo CSV a ser lido
-date = "20200514"
+date = "20200521"
 #
 
 
 
 #
 # Data da última análise (somente para o link no html)
-date1 = "20200514"
+date1 = "20200520"
 #
 
 html_file = codecs.open(date+".html","w", encoding="iso-8859-1")
@@ -129,7 +129,7 @@ html_file.write('<br> \n')
 html_file.write('<br>Esta página apresenta uma análise automática dos dados do Painel Coronavirus do Ministério da Saúde, publicados diariamente <a href="https://covid.saude.gov.br/">aqui</a>. Todos os detalhes técnicos sobre a análise estão <a href="http://vigo.ime.unicamp.br/COVID/covid.pdf">aqui</a>. A análise do dia anterior está <a href="http://vigo.ime.unicamp.br/COVID/'+date1+'.html">aqui</a>.') 
 html_file.write(' Se prefir, há <a href="http://vigo.ime.unicamp.br/COVID/'+date+'.pdf">aqui</a> uma versão PDF desta análise. <br>')
 html_file.write(' O objetivo deste sistema é puramente educacional, com foco na análise de dados e programação em Python, e não em epidemiologia. Não obstante, todos os dados tratados aqui são reais e, portanto, os resultados talvez possam ter alguma relevância para se entender a dinâmica real da epidemia de COVID-19.  ')
-html_file.write('Os dados e códigos necessários para gerar esta página estão <a href="https://github.com/albertosaa/COVID">aqui</a>, sinta-se à vontade para utlizá-los como quiser. <br> \n')
+html_file.write('Os dados e códigos necessários para gerar esta página estão <a href="https://github.com/albertosaa/COVID">aqui</a>, sinta-se à vontade para utilizá-los como quiser. <br> \n')
 
 html_file.write('<br> \n')
 html_file.write('<br> \n')
