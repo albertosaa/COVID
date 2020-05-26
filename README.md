@@ -14,3 +14,5 @@ Os arquivos CSV necessários estão todos aqui. O MS publica os dados numa plani
 
 Importante: a partir de 21/05, o formato da planilha foi alterado, e leitura dos dados por cidade foi prejudicada. Para poder continuar fazendo as análises para as cidades de São Paulo e Campinas, a planilha do MS deve ser editada e compatibilizada com as publicadas antes de 21/05.
 
+A partir de 25/5, as cidades voltaram ao formato anterior. Porém, uma nova coluna redundante (novos casos) foi introduzida. Ela deve ser eliminada para que covid.py funcione. 
+
