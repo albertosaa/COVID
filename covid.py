@@ -122,8 +122,8 @@ def R0(gamma1,gamma2):
 #
 
 if len(sys.argv) == 1:   # Execução via ipyhton ou assemelhados 
-    date  = "20200526"   # data da análise 
-    date1 = "20200525"   # data da última análise 
+    date  = "20200528"   # data da análise 
+    date1 = "20200527"   # data da última análise 
     ShowGraph = True     # mostra os gráficos 
 
 if len(sys.argv) > 1 and len(sys.argv) < 3: # erro ao rodar em command line 
@@ -196,9 +196,9 @@ for reg in reglist:
         d2R_smooth[i] = dR_smooth[i] - dR_smooth[i-1]
 
                                
-    R0_est_0 , R0_est_1 = R0(1/10,1/20)
-    beta = np.mean(np.concatenate( (R0_est_0[N_k-17:N_k-3] , R0_est_1[N_k-17:N_k-3] ) ) )
-    std_err = np.std(np.concatenate( (R0_est_0[N_k-17:N_k-3] , R0_est_1[N_k-17:N_k-3])  ) )
+    R0_est_0 , R0_est_1 = R0(0.119,182)
+    beta = np.mean(np.concatenate( (R0_est_0[N_k-10:N_k-3] , R0_est_1[N_k-10:N_k-3] ) ) )
+    std_err = np.std(np.concatenate( (R0_est_0[N_k-10:N_k-3] , R0_est_1[N_k-10:N_k-3])  ) )
     print(beta,std_err)
     
     R0list[reglist.index(reg)] = beta 
@@ -239,13 +239,13 @@ else:
     
     
 #
-#   Gráfico Menor crescimento médio nas duas últimas semanas
+#   Gráfico Menor crescimento médio na última semana
 #
 plt.grid(True)   
 plt.xlabel("Dias")
 plt.ylabel("Novos casos")
 plt.yscale("log")
-plt.title("Menor crescimento médio nas duas últimas semanas \n "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+plt.title("Menor crescimento médio na última semana \n "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
 
 for i in range (0,len(reglist)):  
     plt.plot(T,Y[:,i],c="lightgray")
@@ -263,13 +263,13 @@ else:
 
 
 #
-#   Gráfico Maior crescimento médio nas duas últimas semanas
+#   Gráfico Maior crescimento médio na última semana
 #
 plt.grid(True)   
 plt.xlabel("Dias")
 plt.ylabel("Novos casos")
 plt.yscale("log")
-plt.title("Maior crescimento médio nas duas últimas semanas \n"+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+plt.title("Maior crescimento médio na última semana \n"+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
 
 for i in range (0,len(reglist)):  
     plt.plot(T,Y[:,i],c="lightgray")
@@ -705,9 +705,9 @@ for reg in reglist:
         plt.close()
     
     
-    R0_est_0 , R0_est_1 = R0(1/10,1/20)
-    beta = np.mean(np.concatenate( (R0_est_0[N_k-17:N_k-3] , R0_est_1[N_k-17:N_k-3] ) ) )
-    std_err = np.std(np.concatenate( (R0_est_0[N_k-17:N_k-3] , R0_est_1[N_k-17:N_k-3])  ) )
+    R0_est_0 , R0_est_1 = R0(0.119,0.182)
+    beta = np.mean(np.concatenate( (R0_est_0[N_k-10:N_k-3] , R0_est_1[N_k-10:N_k-3] ) ) )
+    std_err = np.std(np.concatenate( (R0_est_0[N_k-10:N_k-3] , R0_est_1[N_k-10:N_k-3])  ) )
     print(beta,std_err)
     
 #
@@ -757,7 +757,7 @@ for reg in reglist:
     html_file.write('Datas do primeiro e do último elementos na série: '+First_Day+' e '+Last_Day+'<br> \n')
     html_file.write('Número de elementos na série: '+str(N_k)+'<br> \n')
     html_file.write('Número de casos totais e mortes por milhão de habitantes: '+format(int(round(1e6*R_raw[N_k-1]/Popul)),",d").replace(",", ".")+' e '+format(int(round(1e6*D_raw[N_k-1]/Popul)),",d").replace(",", ".") + '<br> \n')
-    html_file.write('r0 efetivo (últimas 2 semanas - três dias de atraso): '+'{0:.2f}'.format(beta).replace(".",",")+' (std = '+'{0:.2f}'.format(std_err).replace(".",",")+'). <br> \n')                      
+    html_file.write('r0 efetivo (última semana - três dias de atraso): '+'{0:.2f}'.format(beta).replace(".",",")+' (std = '+'{0:.2f}'.format(std_err).replace(".",",")+'). <br> \n')                      
 
     R01 = min(R0_est_0[N_k-4],R0_est_1[N_k-4])
     R02 = max(R0_est_0[N_k-4],R0_est_1[N_k-4])
@@ -766,7 +766,7 @@ for reg in reglist:
     nr = 1 - 1/beta 
     nr1 = 1 - 1/(beta + std_err)
     nr2 = 1 - 1/(beta - std_err)
-    html_file.write('Limiar imunidade de rebanho nR (baseado nas últimas 2 semanas - três dias de atraso) = '+'{0:.2f}'.format(nr).replace(".",",")+" ("+'{0:.2f}'.format(nr2).replace(".",",")+" : "+'{0:.2f}'.format(nr1).replace(".",",")+")  <br> \n")
+    html_file.write('Limiar imunidade de rebanho nR (baseado na última semana - três dias de atraso) = '+'{0:.2f}'.format(nr).replace(".",",")+" ("+'{0:.2f}'.format(nr2).replace(".",",")+" : "+'{0:.2f}'.format(nr1).replace(".",",")+")  <br> \n")
     
     prevstr = ""
     for i in range (0,4):
