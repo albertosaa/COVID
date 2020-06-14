@@ -8,7 +8,7 @@ http://vigo.ime.unicamp.br/COVID/
 
 Para os detalhes técnicos da análise, leia o arquivo covid.pdf
 
-O código python para as análises está no arquivo covid.py
+O código python para as análises está nos diversos arquivos .py
 
 Os arquivos CSV necessários estão todos aqui. O MS publica os dados numa planilha excel. O arquivo CSV pode ser gerado, por exemplo, usando-se o LibreOffice. 
 
