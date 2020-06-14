@@ -16,6 +16,8 @@ Importante: a partir de 21/05, o formato da planilha foi alterado, e leitura dos
 
 A partir de 25/5, as cidades voltaram ao formato anterior. Porém, uma nova coluna redundante (novos casos) foi introduzida. Ela deve ser eliminada para que covid.py funcione. 
 
-A partir de 13/6, o sistema utiliza os dados da plataforma brasil.io (https://brasil.io/dataset/covid19/caso_full/), que tem se mostrado muito superior tecnicamente e também mais estável que a plataforma do MS.
+A partir de 12/6, o arquivo csv passou a exceder os 25MB permitidos no github, por isso está zipado. As instruçes para manipulação de arquivos .zip com a interface API estão no arquivo api-zip.py
+
+A partir de 13/6, o sistema utiliza os dados da plataforma brasil.io (https://brasil.io/dataset/covid19/caso_full/), que tem se mostrado muito superior tecnicamente e também mais estável que a plataforma do MS (bye bye MS).
 
 
