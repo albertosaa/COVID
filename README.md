@@ -16,3 +16,6 @@ Importante: a partir de 21/05, o formato da planilha foi alterado, e leitura dos
 
 A partir de 25/5, as cidades voltaram ao formato anterior. Porém, uma nova coluna redundante (novos casos) foi introduzida. Ela deve ser eliminada para que covid.py funcione. 
 
+A partir de 13/6, o sistema utiliza os dados da plataforma brasil.io (https://brasil.io/dataset/covid19/caso_full/), que tem se mostrado muito superior tecnicamente e também mais estável que a plataforma do MS.
+
+
