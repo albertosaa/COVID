@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import requests
 import csv
+from datetime import datetime
+import time 
 
 
 def read_brasil_io(lista_estados,lista_cidades):
@@ -20,14 +22,31 @@ def read_brasil_io(lista_estados,lista_cidades):
     brasil_io_url ='https://brasil.io/dataset/covid19/caso_full/?format=csv'
 
 
-    print('Lendo os dados do repositório brasil.io......')        
+    print('Lendo os dados do repositório brasil.io......')    
+    start = time.time()    
     with requests.Session() as s:
         download = s.get(brasil_io_url)
         decoded_content = download.content.decode('utf-8')
         cr = csv.reader(decoded_content.splitlines(), delimiter=',')
-    linecsv_brasil_io = list(cr)
-    print('Feito.')
-
+        linecsv_brasil_io = list(cr)
+    end = time.time()
+    print('Feito. '+'{0:.1f}'.format(end - start)+" segundos.")
+    
+    now = datetime.now()
+    
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    
+    update_string = 'Últimas atualizações nos arquivos <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>  (dados importados em '+dt_string+"): <br> "
+    
+    for reg in lista_estados:
+        for row in linecsv_brasil_io:
+            if row[6] == "state" and row[3] == reg:   
+                if row[14] == 'True':
+                    update_string = update_string+reg+" = "+row[1]+", "
+    
+    update_string = update_string[:-2]
+    
+    update_string = update_string+". <br> Estados com dados desatualizados terão a análise prejudicada."
 
     linecsv = []
 
@@ -95,7 +114,7 @@ def read_brasil_io(lista_estados,lista_cidades):
         for i in range (0,N_l):
             linecsv.append(linecsv_reg[N_l-1-i]) 
             
-    return linecsv 
+    return linecsv , update_string
 
 def read_csv_data(reg,linecsv):
 #
@@ -157,7 +176,7 @@ def read_csv_data(reg,linecsv):
     return dict_return
 
 
-def write_opening(html_file,date,date1):
+def write_opening(html_file,date,date1,update_string):
      
     html_file.write('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
     html_file.write('<html><head> \n')
@@ -175,6 +194,7 @@ def write_opening(html_file,date,date1):
     html_file.write(' O objetivo deste sistema é puramente educacional, com foco na análise de dados e programação em Python, e não em epidemiologia. Não obstante, todos os dados tratados aqui são reais e, portanto, os resultados talvez possam ter alguma relevância para se entender a dinâmica real da epidemia de COVID-19, a qual está muito bem analisada, por exemplo, <a href="https://covid19br.github.io/">aqui</a>.  ')
     html_file.write('Os dados e códigos necessários para gerar esta página estão <a href="https://github.com/albertosaa/COVID">aqui</a>, sinta-se à vontade para utilizá-los como quiser. <br> \n')
     html_file.write('<br> \n')
+    html_file.write(update_string + ' <br> \n' )
     html_file.write('<br> \n')
     html_file.write('<hr> \n')
 

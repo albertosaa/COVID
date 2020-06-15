@@ -16,8 +16,9 @@ import painelCOVID as painel
 
 
 
-date  = "20200613"   # data dos dados da análise 
-date1 = "20200612"   # data dos dados da última análise 
+
+date  = "20200614"   # data dos dados da análise 
+date1 = "20200613"   # data dos dados da última análise 
 
 gamma1 = 0.119
 gamma2 = 0.182
@@ -40,7 +41,7 @@ reglistcid = [["SP","São Paulo"],["SP","Campinas"],["SP","Guarulhos"],["SP","S�
 #
 #   Leitura API brasil.io
 #
-linecsv = painel.read_brasil_io(reglist, reglistcid)
+linecsv , update_string  = painel.read_brasil_io(reglist, reglistcid)
 
 
 
@@ -50,7 +51,7 @@ linecsv = painel.read_brasil_io(reglist, reglistcid)
 #
 html_file = codecs.open(date+".html","w", encoding="iso-8859-1")
 
-painel.write_opening(html_file,date,date1)
+painel.write_opening(html_file,date,date1,update_string)
 
 
     
