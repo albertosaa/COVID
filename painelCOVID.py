@@ -14,13 +14,34 @@ import requests
 import csv
 from datetime import datetime
 import time 
+import io
+import zipfile
 
+def read_github(date,reglist):
+
+    git_url = 'https://raw.githubusercontent.com/albertosaa/COVID/master/data/'+date+'.csv.zip'
+    r = requests.get(git_url)
+    zip_file = zipfile.ZipFile(io.BytesIO(r.content))
+    files = zip_file.namelist()
+    with zip_file.open(files[0], 'r') as csvfile_byte:
+        with io.TextIOWrapper(csvfile_byte) as csv_file:
+            cr = csv.reader(csv_file)
+            linecsv = list(cr)
+        
+    update_string = ""      
+
+    dict_estados = {}
+    for reg in reglist:  
+        dict_estados.update({ reg : ""})
+        
+        
+    return linecsv , update_string , dict_estados
 
 def read_brasil_io(lista_estados,lista_cidades):
     
     
     brasil_io_url ='https://brasil.io/dataset/covid19/caso_full/?format=csv'
-
+    
 
     print('Lendo os dados do repositório brasil.io......')    
     start = time.time()    
@@ -38,11 +59,15 @@ def read_brasil_io(lista_estados,lista_cidades):
     
     update_string = 'Últimas atualizações nos arquivos <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>  (dados importados em '+dt_string+"): <br> "
     
+    dict_estados = {}
+    
     for reg in lista_estados:
         for row in linecsv_brasil_io:
             if row[6] == "state" and row[3] == reg:   
                 if row[14] == 'True':
                     update_string = update_string+reg+" = "+row[1]+", "
+                    if row[14] == 'True': 
+                        dict_estados.update({ reg : row[1]})
     
     update_string = update_string[:-2]
     
@@ -114,7 +139,7 @@ def read_brasil_io(lista_estados,lista_cidades):
         for i in range (0,N_l):
             linecsv.append(linecsv_reg[N_l-1-i]) 
             
-    return linecsv , update_string
+    return linecsv , update_string , dict_estados
 
 def read_csv_data(reg,linecsv):
 #
@@ -190,18 +215,21 @@ def write_opening(html_file,date,date1,update_string):
     html_file.write('<div style="text-align: center;"> <big> <big> UNICAMP </big> </big></div> \n')
     html_file.write('<br> \n')
     html_file.write('<br> \n')
-    html_file.write('<br>Esta página apresenta uma análise automática dos casos de COVID-19 a partir dos dados da plataforma <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>, que tem se mostrado tecnicamente superior e mais estável que a do Ministério da Saúde. Todos os detalhes técnicos sobre a análise estão <a href="covid.pdf">aqui</a>. A análise do dia anterior está <a href="'+date1+'.html">aqui</a>.') 
-    html_file.write(' O objetivo deste sistema é puramente educacional, com foco na análise de dados e programação em Python, e não em epidemiologia. Não obstante, todos os dados tratados aqui são reais e, portanto, os resultados talvez possam ter alguma relevância para se entender a dinâmica real da epidemia de COVID-19, a qual está muito bem analisada, por exemplo, <a href="https://covid19br.github.io/">aqui</a>.  ')
+    html_file.write('<br>Esta página apresenta uma análise automática dos casos de COVID-19 a partir de dados públicos. (Clique <a href="dadosCOVID.html">aqui</a> para saber mais sobre a importação destes dados). Todos os detalhes técnicos sobre a análise estão <a href="covid.pdf">aqui</a>. A análise do dia anterior está <a href="'+date1+'.html">aqui</a>.') 
+    html_file.write('O objetivo deste sistema é puramente educacional, com foco na análise de dados e programação em Python, e não em epidemiologia. Não obstante, todos os dados tratados aqui são reais e, portanto, os resultados talvez possam ter alguma relevância para se entender a dinâmica real da epidemia de COVID-19, a qual está muito bem analisada, por exemplo, <a href="https://covid19br.github.io/">aqui</a>.  ')
     html_file.write('Os dados e códigos necessários para gerar esta página estão <a href="https://github.com/albertosaa/COVID">aqui</a>, sinta-se à vontade para utilizá-los como quiser. <br> \n')
     html_file.write('<br> \n')
-    html_file.write(update_string + ' <br> \n' )
+    if update_string == "":
+        html_file.write('Análise realizada a partir dos dados do Ministério da Saúde, clique <a href="dadosCOVID.html">aqui</a> para mais detalhes. <br> \n')
+    else: 
+        html_file.write(update_string + ' <br> \n' )
     html_file.write('<br> \n')
     html_file.write('<hr> \n')
 
     
     return 
 
-def write_analise(write_dict):
+def write_analise(write_dict,update_date):
     
     
     html_file = write_dict['html_file']
@@ -247,8 +275,10 @@ def write_analise(write_dict):
     else:
         html_file.write('Início e fim da série: '+First_Day+' e '+Last_Day+'. ('+str(N_k)+' elementos - '+str(N_s)+' semanas e '+str(N_d)+' dias). <br> \n')
         
+    if update_date != "":
+        html_file.write('Última atualização na plataforma <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>: '+update_date+'. <br> \n')
         
-    html_file.write('Número de casos totais e mortes por milhão de habitantes: '+format(int(round(1e6*R_raw[N_k-1]/Popul)),",d").replace(",", ".")+' e '+format(int(round(1e6*D_raw[N_k-1]/Popul)),",d").replace(",", ".") + '<br> \n')
+    html_file.write('Número de casos totais e mortes: '+format(R_raw[N_k-1],",d").replace(",", ".")+' e '+format(D_raw[N_k-1],",d").replace(",", ".")+'. ('+format(int(round(1e6*R_raw[N_k-1]/Popul)),",d").replace(",", ".")+' e '+format(int(round(1e6*D_raw[N_k-1]/Popul)),",d").replace(",", ".") + ' por milhão de habitantes, respectivamente.) <br> \n')
     html_file.write('<i>r<sub>0</sub></i> efetivo médio (duas últimas semanas - três dias de atraso): '+'{0:.2f}'.format(r_avg).replace(".",",")+' (std = '+'{0:.2f}'.format(std_err).replace(".",",")+').  \n')                      
     html_file.write('Último intervalo para  <i>r<sub>0</sub></i> (três dias de atraso): ('+'{0:.2f}'.format(R01).replace(".",",")+' : '+'{0:.2f}'.format(R02).replace(".",",")+'). <br> \n')                      
     
