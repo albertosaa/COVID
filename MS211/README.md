@@ -1,4 +1,4 @@
-Série temporal por estados
+**Série temporal por estados**
 
 Arquivos CSV (https://en.wikipedia.org/wiki/Comma-separated_values) gerados pelo programa geraMS211files.py a partir dos dados do Ministério da Saúde divulgados em 21/06/2020. 
 
