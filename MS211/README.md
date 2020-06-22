@@ -1,0 +1,1 @@
+Série temporal por estados
