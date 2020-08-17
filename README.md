@@ -20,4 +20,6 @@ A partir de 12/6, o arquivo csv passou a exceder os 25MB permitidos no github, p
 
 A partir de 13/6, o sistema utiliza os dados da plataforma brasil.io (https://brasil.io/dataset/covid19/caso_full/), que tem se mostrado muito superior tecnicamente e também mais estável que a plataforma do MS (bye bye MS).
 
+17/08/2020: fator alpha parece inconsistente com os dados das últimas semanas. Alterado para alpha=7, na espera de uma solução melhor, provavelmente não homogênea entre estados e cidades.
+
 
