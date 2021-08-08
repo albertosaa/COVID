@@ -17,6 +17,8 @@ import time
 import io
 import zipfile
 import scipy.stats
+import imageio
+import os
 
 def read_github(date,reglist):
 
@@ -26,7 +28,7 @@ def read_github(date,reglist):
     files = zip_file.namelist()
     with zip_file.open(files[0], 'r') as csvfile_byte:
         with io.TextIOWrapper(csvfile_byte) as csv_file:
-            cr = csv.reader(csv_file)
+            cr = csv.reader(csv_file,delimiter=';')
             linecsv = list(cr)
         
     update_string = ""      
@@ -36,6 +38,112 @@ def read_github(date,reglist):
         dict_estados.update({ reg : ""})
         
         
+    return linecsv , update_string , dict_estados
+
+def read_brasil_io_zip(lista_estados,lista_cidades):
+    
+    
+    brasil_io_url ='https://data.brasil.io/dataset/covid19/caso_full.csv.gz'
+    
+
+    print('Lendo os dados do repositório brasil.io......')    
+    start = time.time()    
+    r = requests.get(brasil_io_url)
+    zip_file = zipfile.ZipFile(io.BytesIO(r.content))
+    files = zip_file.namelist()
+    with zip_file.open(files[0], 'r') as csvfile_byte:
+        with io.TextIOWrapper(csvfile_byte) as csv_file:
+            cr = csv.reader(csv_file)
+            linecsv_brasil_io = list(cr)
+    end = time.time()
+    print('Feito. '+'{0:.1f}'.format(end - start)+" segundos.")
+    
+    now = datetime.now()
+    
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    
+    update_string = 'Últimas atualizações nos arquivos <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>  (dados importados em '+dt_string+"): <br> "
+    
+    dict_estados = {}
+    
+    for reg in lista_estados:
+        for row in linecsv_brasil_io:
+            if row[6] == "state" and row[3] == reg:   
+                if row[14] == 'True':
+                    update_string = update_string+reg+" = "+row[1]+", "
+                    if row[14] == 'True': 
+                        dict_estados.update({ reg : row[1]})
+    
+    update_string = update_string[:-2]
+    
+    update_string = update_string+". <br> Estados com dados desatualizados terão a análise prejudicada."
+
+    linecsv = []
+
+
+    N_max = 0
+    for reg in lista_estados:
+    
+        linecsv_reg = []
+
+        for row in linecsv_brasil_io:
+            if row[6] == "state" and row[3] == reg:     
+                newrow = ["",reg,"","","","","",row[1],"",row[13],row[7],"",row[10]]
+                linecsv_reg.append(newrow)
+        N_l = len(linecsv_reg)
+        if N_l > N_max:
+            N_max = N_l
+        
+        for i in range (0,N_l):
+            linecsv.append(linecsv_reg[N_l-1-i])
+        
+    R_brasil = np.zeros(N_max,dtype=int)
+    D_brasil = np.zeros(N_max,dtype=int)
+
+    for reg in lista_estados:
+    
+        reg1 = [reg,""]
+
+        res = read_csv_data(reg1,linecsv)
+
+        R_raw = res['R_raw'] 
+        D_raw = res['D_raw'] 
+    
+        if R_raw.size < N_max:
+            R_brasil += np.concatenate((np.zeros(N_max - R_raw.size,dtype=int),R_raw))
+            D_brasil += np.concatenate((np.zeros(N_max - R_raw.size,dtype=int),D_raw))
+        else:
+            R_brasil +=  R_raw
+            D_brasil +=  D_raw        
+
+
+    datas = []
+
+    for row in linecsv_brasil_io:
+        if row[6] == "state" and row[3] == "SP":     
+            datas.append(row[1])
+        
+    for i in range (0,N_max):
+        newrow = ["Brasil","","","","","","",datas[N_max-1-i],"","210147125",str(R_brasil[i]),"",str(D_brasil[i])]
+        linecsv.append(newrow)
+    
+    
+
+
+    for reg in lista_cidades:
+    
+        linecsv_reg = []
+
+        for row in linecsv_brasil_io:
+            if row[3] == reg[0] and row[4] == reg[1]:     
+                newrow = ["",reg[0],reg[1],"","","","",row[1],"",row[13],row[7],"",row[10]]
+                linecsv_reg.append(newrow)
+        N_l = len(linecsv_reg)
+
+        
+        for i in range (0,N_l):
+            linecsv.append(linecsv_reg[N_l-1-i]) 
+            
     return linecsv , update_string , dict_estados
 
 def read_brasil_io(lista_estados,lista_cidades):
@@ -153,44 +261,67 @@ def read_csv_data(reg,linecsv):
     YD = []
     k = 0 
     
+    Ayer = "----"
+    
     if reg[0] == "Brasil":
         for row in linecsv:
             if (row[0] == reg[0]) :
+                
+                Hoy = row[7]
+                
                 if k == 0:
-                    First_Day = row[7]
+                    First_Day = Hoy
                     Pop = int(row[9])
                     
-                Y.append(int(row[10]))
-                YD.append(int(row[12]))
+                if (Hoy == Ayer):
+                    print("Same date: ",Hoy,reg[0],reg[1])
+                else:
+                    Y.append(int(row[10]))
+                    YD.append(int(row[12]))
+                    k += 1
+                    Last_Day = row[7]
+                    Ayer = Hoy
                 
-                k += 1
-                Last_Day = row[7]
+               
  
     elif  reg[1] == "":    
         for row in linecsv:
             if (row[1] == reg[0]) and (row[2] == "") and ( row[9] != "" ):
+                
+                Hoy = row[7]
+                
+                
                 if k == 0:
-                    First_Day = row[7]
+                    First_Day = Hoy
                     Pop = int(row[9])
                     
-                Y.append(int(row[10]))
-                YD.append(int(row[12]))
-
-                k += 1
-                Last_Day = row[7]
+                if (Hoy == Ayer):
+                    print("Same date: ",Hoy,reg[0],reg[1])
+                else:
+                    Y.append(int(float(row[10])))
+                    YD.append(int(row[12]))
+                    k += 1
+                    Last_Day = row[7]
+                    Ayer = Hoy
  
     else:
         for row in linecsv:
             if (row[1] == reg[0]) and (row[2] == reg[1]):
+                
+                Hoy = row[7]
+                
                 if k == 0:
-                    First_Day = row[7]
+                    First_Day = Hoy
                     Pop = int(row[9])
                     
-                Y.append(int(row[10]))
-                YD.append(int(row[12]))
-
-                k += 1
-            Last_Day = row[7]
+                if (Hoy == Ayer):
+                    print("Same date: ",Hoy,reg[0],reg[1])
+                else:
+                    Y.append(int(row[10]))
+                    YD.append(int(row[12]))
+                    k += 1
+                    Last_Day = row[7]
+                    Ayer = Hoy
   
     dict_return = {'R_raw' : np.array(Y), \
                    'D_raw' :np.array(YD), \
@@ -212,11 +343,11 @@ def write_opening(html_file,date,date1,update_string):
     html_file.write(date[6:8]+"/"+date[4:6]+"/"+date[0:4] + "<br></div> \n")
     html_file.write('<br> \n')
     html_file.write('<br> \n')
-    html_file.write('<div style="text-align: center;">  <big> <big> Alberto Saa </big> </big> <br></div> \n')
+    html_file.write('<div style="text-align: center;">  <big> <big>Davi Carvalho, Jefferson Monção da Silva, Sabrina Zani e Alberto Saa </big> </big> <br></div> \n')
     html_file.write('<div style="text-align: center;"> <big> <big> UNICAMP </big> </big></div> \n')
     html_file.write('<br> \n')
     html_file.write('<br> \n')
-    html_file.write('<br>Esta página apresenta uma análise automática dos casos de COVID-19 a partir de dados públicos. (Clique <a href="dadosCOVID.html">aqui</a> para saber mais sobre a importação destes dados). Todos os detalhes técnicos sobre a análise estão <a href="covid.pdf">aqui</a>. A análise do dia anterior está <a href="'+date1+'.html">aqui</a>.') 
+    html_file.write('<br>Esta página, desenvolvida como atividade da discplina MS777-Projeto Supervisionado, ao longo do segundo semestre de 2020, apresenta uma análise automática dos casos de COVID-19 a partir de dados públicos. (Clique <a href="dadosCOVID.html">aqui</a> para saber mais sobre a importação destes dados). Todos os detalhes técnicos sobre a análise estão <a href="covid.pdf">aqui</a>. A análise do dia anterior está <a href="'+date1+'.html">aqui</a>.') 
     html_file.write('O objetivo deste sistema é puramente educacional, com foco na análise de dados e programação em Python, e não em epidemiologia. Não obstante, todos os dados tratados aqui são reais e, portanto, os resultados talvez possam ter alguma relevância para se entender a dinâmica real da epidemia de COVID-19, a qual está muito bem analisada, por exemplo, <a href="https://covid19br.github.io/">aqui</a>.  ')
     html_file.write('Os dados e códigos necessários para gerar esta página estão <a href="https://github.com/albertosaa/COVID">aqui</a>, sinta-se à vontade para utilizá-los como quiser. <br> \n')
     html_file.write('<br> \n')
@@ -280,6 +411,8 @@ def write_analise(write_dict,update_date):
         html_file.write('Última atualização na plataforma <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>: '+update_date+'. <br> \n')
         
     html_file.write('Número de casos totais e mortes: '+format(R_raw[N_k-1],",d").replace(",", ".")+' e '+format(D_raw[N_k-1],",d").replace(",", ".")+'. ('+format(int(round(1e6*R_raw[N_k-1]/Popul)),",d").replace(",", ".")+' e '+format(int(round(1e6*D_raw[N_k-1]/Popul)),",d").replace(",", ".") + ' por milhão de habitantes, respectivamente.) <br> \n')
+    html_file.write('Novos casos e mortes: '+format(R_raw[N_k-1]-R_raw[N_k-2],",d").replace(",", ".")+' e '+format(D_raw[N_k-1]-D_raw[N_k-2],",d").replace(",", ".")+'. <br> \n')
+    html_file.write('Incidência nas duas últimas semanas por cem mil habitantes: '+format(int(round(1e5*(R_raw[N_k-1]-R_raw[N_k-15])/Popul)),",d").replace(",", ".")+' novos casos e '+format(int(round(1e5*(D_raw[N_k-1]-D_raw[N_k-15])/Popul)),",d").replace(",", ".") + ' mortes. <br> \n')
     html_file.write('<i>r<sub>0</sub></i> (integral) efetivo médio (duas últimas semanas - três dias de atraso): '+'{0:.2f}'.format(r_avg).replace(".",",")+' (std = '+'{0:.2f}'.format(std_err).replace(".",",")+').  \n')                      
     html_file.write('Último intervalo para  <i>r<sub>0</sub></i> (três dias de atraso): ('+'{0:.2f}'.format(R01).replace(".",",")+' : '+'{0:.2f}'.format(R02).replace(".",",")+'). <br> \n')                      
     
@@ -290,14 +423,92 @@ def write_analise(write_dict,update_date):
         prevstr = prevstr+format(int(R_prev[i]),",d").replace(",", ".")+', '    
     prevstr = prevstr+format(int(R_prev[4]),",d").replace(",", ".")+"."
     
-    html_file.write('Previsão do número total de casos para os próximos 5 dias: '+prevstr+' <br> \n')
+    html_file.write('Previsão de novos casos (média semanal) para os próximos 5 dias: '+prevstr+' <br> \n')
 
     html_file.write('<br> \n')
     html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos Acumulados" src="'+regfile+"CA.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="Novos casos" src="'+regfile+"NC.jpg"+'"><br></div>')
     html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos e morter por milhao" src="'+regfile+"pm.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="Previsão novos casos" src="'+regfile+"PR.jpg"+'"><br></div>')
     html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos por semana" src="'+regfile+"CAS.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="mu" src="'+regfile+"MS.jpg"+'"><br></div>')
     html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="r0 - dif" src="'+regfile+"R0dif.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="R) - int" src="'+regfile+"R0int.jpg"+'"><br></div>')
-    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="mu" src="'+regfile+"mu.jpg"+'"><br></div>')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="TI" src="'+regfile+"TI.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="mu" src="'+regfile+"mu.jpg"+'"><br></div>')
+    html_file.write('<br> \n')
+    html_file.write('<br> \n')
+    
+
+    
+    return
+
+
+def write_analise_gif(write_dict,update_date):
+    
+    
+    html_file = write_dict['html_file']
+    reg = write_dict['reg']
+    regfile = write_dict['regfile']
+    date = write_dict['date']
+    
+    R_raw = write_dict['res']['R_raw']
+    D_raw = write_dict['res']['D_raw'] 
+    N_k = write_dict['res']['N_k']
+    First_Day = write_dict['res']['First_Day']
+    Last_Day = write_dict['res']['Last_Day']
+    Popul = write_dict['res']['Popul'] 
+  
+    N_s = write_dict['N_s']
+    N_d = write_dict['N_d']
+    
+    r_avg = write_dict['r_avg']
+    std_err = write_dict['std_err']
+    
+    R01 = write_dict['R01']
+    R02 = write_dict['R02']
+    nR = write_dict['nR']
+    R_prev = write_dict['R_prev']
+    
+
+    html_file.write('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> \n')
+    html_file.write('<html><head> \n')
+    html_file.write('<link rel="icon" type="image/x-icon"  href="favicon.ico">  \n')
+    html_file.write('<meta content="text/html; charset=ISO-8859-1" http-equiv="content-type"><title>Painel Coronavirus</title><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body> \n')
+    html_file.write('<big><big><span style="font-weight: bold;"> '+reg+' - '+date[6:8]+"/"+date[4:6]+"/"+date[0:4]+'. </span></big></big> <br> \n')    
+    html_file.write('Detalhes técnicos, <a href="covid.pdf">aqui</a>. Clique <a href='+regfile+'.pdf>aqui</a> para uma versão em PDF desta análise. \n')
+
+    html_file.write('<br> \n')
+    html_file.write('<br> \n')
+
+    html_file.write('População: '+format(Popul,",d").replace(",", ".")+'.   \n')
+
+    if N_d == 0:    
+        html_file.write('Início e fim da série: '+First_Day+' e '+Last_Day+'. ('+str(N_k)+' elementos - '+str(N_s)+' semanas). <br> \n')
+    elif N_d == 1:
+        html_file.write('Início e fim da série: '+First_Day+' e '+Last_Day+'. ('+str(N_k)+' elementos - '+str(N_s)+' semanas e '+str(N_d)+' dia). <br> \n')
+    else:
+        html_file.write('Início e fim da série: '+First_Day+' e '+Last_Day+'. ('+str(N_k)+' elementos - '+str(N_s)+' semanas e '+str(N_d)+' dias). <br> \n')
+        
+    if update_date != "":
+        html_file.write('Última atualização na plataforma <a href="https://brasil.io/dataset/covid19/caso_full/">brasil.io</a>: '+update_date+'. <br> \n')
+        
+    html_file.write('Número de casos totais e mortes: '+format(R_raw[N_k-1],",d").replace(",", ".")+' e '+format(D_raw[N_k-1],",d").replace(",", ".")+'. ('+format(int(round(1e6*R_raw[N_k-1]/Popul)),",d").replace(",", ".")+' e '+format(int(round(1e6*D_raw[N_k-1]/Popul)),",d").replace(",", ".") + ' por milhão de habitantes, respectivamente.) <br> \n')
+    html_file.write('Novos casos e mortes: '+format(R_raw[N_k-1]-R_raw[N_k-2],",d").replace(",", ".")+' e '+format(D_raw[N_k-1]-D_raw[N_k-2],",d").replace(",", ".")+'. <br> \n')
+    html_file.write('Incidência nas duas últimas semanas por cem mil habitantes: '+format(int(round(1e5*(R_raw[N_k-1]-R_raw[N_k-15])/Popul)),",d").replace(",", ".")+' novos casos e '+format(int(round(1e5*(D_raw[N_k-1]-D_raw[N_k-15])/Popul)),",d").replace(",", ".") + ' mortes. <br> \n')
+    html_file.write('<i>r<sub>0</sub></i> (integral) efetivo médio (duas últimas semanas - três dias de atraso): '+'{0:.2f}'.format(r_avg).replace(".",",")+' (std = '+'{0:.2f}'.format(std_err).replace(".",",")+').  \n')                      
+    html_file.write('Último intervalo para  <i>r<sub>0</sub></i> (três dias de atraso): ('+'{0:.2f}'.format(R01).replace(".",",")+' : '+'{0:.2f}'.format(R02).replace(".",",")+'). <br> \n')                      
+    
+    html_file.write('Limiar imunidade de grupo  <i>n<sub>R</sub> </i> (baseado no valor de <i>r<sub>0</sub></i> (integral) efetivo médio) = '+'{0:.2f}'.format(nR).replace(".",",")+".  <br> \n")
+    
+    prevstr = ""
+    for i in range (0,4):
+        prevstr = prevstr+format(int(R_prev[i]),",d").replace(",", ".")+', '    
+    prevstr = prevstr+format(int(R_prev[4]),",d").replace(",", ".")+"."
+    
+    html_file.write('Previsão de novos casos (média semanal) para os próximos 5 dias: '+prevstr+' <br> \n')
+
+    html_file.write('<br> \n')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos Acumulados" src="'+regfile+"CA.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="Novos casos" src="'+regfile+"NC.gif"+'"><br></div>')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos e morter por milhao" src="'+regfile+"pm.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="Previsão novos casos" src="'+regfile+"PR.jpg"+'"><br></div>')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="Casos por semana" src="'+regfile+"CAS.gif"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="mu" src="'+regfile+"MS.gif"+'"><br></div>')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="r0 - dif" src="'+regfile+"R0dif.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="R) - int" src="'+regfile+"R0int.jpg"+'"><br></div>')
+    html_file.write('<div style="text-align: center;"><img style="width: 432px; height: 288px;" alt="TI" src="'+regfile+"TI.jpg"+'">&nbsp; <img style="width: 432px; height: 288px;" alt="mu" src="'+regfile+"mu.jpg"+'"><br></div>')
     html_file.write('<br> \n')
     html_file.write('<br> \n')
     
@@ -392,12 +603,46 @@ def drawCA(R_raw,R_smooth,reg,regfile,date):
     N_k = R_raw.size
     
     plt.grid(False)    
-    plt.bar(np.linspace(0,N_k-1,N_k),R_raw)
+    plt.bar(np.linspace(0,N_k-1,N_k),R_raw,snap=False)
     plt.plot(np.linspace(0,N_k-1,N_k),R_smooth,"r")
     plt.xlabel("Dias")
     plt.ylabel("Casos")
     plt.title("Casos acumulados - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
     plt.savefig(regfile+"CA.jpg",bbox_inches="tight") 
+
+    plt.close()
+        
+    return
+
+
+def drawTI(R_raw,reg,regfile,Popul,date):
+#
+# Gráfico Casos acumulados
+#
+
+    N_k = R_raw.size
+    
+    TI_raw = np.copy(R_raw[14:])
+    TI_raw = 1e5*(TI_raw - R_raw[:N_k-14])/Popul
+    
+    
+    plt.grid(False)    
+    
+    plt.bar(np.linspace(14,N_k-1,N_k-14),TI_raw,snap=False)
+    if np.max(TI_raw)>250:
+        plt.plot(np.linspace(14,N_k-1,N_k-14),250*np.ones(N_k-14),"r")
+        
+    if np.max(TI_raw)>500:
+        plt.plot(np.linspace(14,N_k-1,N_k-14),500*np.ones(N_k-14),"r")    
+
+    if np.max(TI_raw)>750:
+        plt.plot(np.linspace(14,N_k-1,N_k-14),750*np.ones(N_k-14),"r")
+
+        
+    plt.xlabel("Dias")
+    plt.ylabel("Incidência")
+    plt.title("Inc. 2 semanas 100 mil hab. - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+    plt.savefig(regfile+"TI.jpg",bbox_inches="tight") 
 
     plt.close()
         
@@ -412,7 +657,7 @@ def drawNC(dR_raw,dR_smooth,reg,regfile,date):
     N_k = dR_raw.size  
 
     plt.grid(False)    
-    plt.bar(np.linspace(0,N_k-1,N_k),dR_raw)
+    plt.bar(np.linspace(0,N_k-1,N_k),dR_raw,snap=False)
     plt.plot(np.linspace(0,N_k-1,N_k) , dR_smooth,"r")
     plt.xlabel("Dias")
     plt.ylabel("Casos")
@@ -420,6 +665,40 @@ def drawNC(dR_raw,dR_smooth,reg,regfile,date):
     plt.savefig(regfile+"NC.jpg",bbox_inches="tight") 
     
     plt.close()
+    
+    return
+
+def drawNCgif(dR_raw,dR_smooth,reg,regfile,date):
+#
+# Gráfico Novos Casos  
+#
+    imageC = []
+
+    ii = dR_raw.size  
+    
+    for N_k in range (1,ii+1):
+        
+        print(N_k,ii)
+
+        plt.grid(False)    
+        plt.bar(np.linspace(0,N_k-1,N_k),dR_raw[0:N_k],snap=False)
+        plt.plot(np.linspace(0,N_k-1,N_k) , dR_smooth[0:N_k],"r")
+        plt.xlabel("Dias")
+        plt.ylabel("Casos")
+        plt.title("Novos casos - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+        plt.savefig(regfile+"NC.jpg") 
+    
+        plt.close()
+        
+        imageC.append(imageio.imread(regfile+"NC.jpg"))
+        
+    imageio.mimsave(regfile+"NCa.gif",imageC, duration = 0.025, loop = 1)
+
+    gifsicle = "gifsicle -i "+regfile+"NCa.gif --optimize=3 --colors 16  -o "+regfile+"NC.gif"
+    os.system(gifsicle)
+    
+    rm = "rm "+regfile+"NCa.gif" 
+    os.system(rm)
     
     return
     
@@ -515,18 +794,20 @@ def drawR0thumb(R0_est_0,R0_est_1,reg,regfile,date):
     
     return
 
-def drawPR(R_raw,T_prev,R_prev,reg,regfile,date):
+def drawPR(dR_raw,dR_smooth4,T_prev,R_prev,reg,regfile,date):
     
-    N_k = R_raw.size
+    N_k = dR_raw.size
     T = np.linspace(0,N_k-1,N_k)
     
     plt.grid(False)    
-    plt.bar(T,R_raw)
-    plt.bar(T_prev,R_prev,color="g")
+    plt.bar(T,dR_raw,snap=False)
+    plt.plot(np.concatenate((T,T_prev)),np.concatenate((dR_smooth4,R_prev)),"r")
+    plt.bar(T_prev,R_prev,color="g",snap=False)
     plt.xlabel("Dias")
     plt.ylabel("Casos")
-    plt.title("Previsão de casos - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
-    plt.xlim(N_k-20,N_k+5)
+    plt.title("Previsão de novos casos - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+    plt.xlim(N_k-40,N_k+5)
+    plt.ylim(0,1.2*np.max(np.concatenate((dR_raw,R_prev))[N_k-40:N_k+5]))
     plt.savefig(regfile+"PR.jpg",bbox_inches="tight") 
 
     plt.close()
@@ -590,7 +871,7 @@ def drawCAS(R_raw,D_raw,N_s,N_d,reg,regfile,date):
         # Novos casos por semana
         #
         plt.grid(False)    
-        plt.bar(T_week,R_week)
+        plt.bar(T_week,R_week,snap=False)
         plt.xlabel("Semanas desde o primeiro caso")
         plt.ylabel("Casos")
         plt.title("Casos por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
@@ -602,7 +883,7 @@ def drawCAS(R_raw,D_raw,N_s,N_d,reg,regfile,date):
         # Mortes por semana
         #
         plt.grid(False)    
-        plt.bar(T_week,D_week)
+        plt.bar(T_week,D_week,snap=False)
         plt.xlabel("Semanas desde o primeiro caso")
         plt.ylabel("Mortes")
         plt.title("Mortes por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
@@ -616,8 +897,8 @@ def drawCAS(R_raw,D_raw,N_s,N_d,reg,regfile,date):
         # Novos casos por semana
         #
         plt.grid(False)    
-        plt.bar(T_week,R_week)
-        plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([R_week_rem]))),color = "lightblue")
+        plt.bar(T_week,R_week,snap=False)
+        plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([R_week_rem]))),color = "lightblue",snap=False)
         plt.xlabel("Semanas desde o primeiro caso")
         plt.ylabel("Casos")
         plt.title("Casos por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
@@ -629,8 +910,8 @@ def drawCAS(R_raw,D_raw,N_s,N_d,reg,regfile,date):
         # Mortes por semana
         #
         plt.grid(False)    
-        plt.bar(T_week,D_week)
-        plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([D_week_rem]))),color = "lightblue")
+        plt.bar(T_week,D_week,snap=False)
+        plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([D_week_rem]))),color = "lightblue",snap=False)
         plt.xlabel("Semanas desde o primeiro caso")
         plt.ylabel("Mortes")
         plt.title("Mortes por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
@@ -640,6 +921,111 @@ def drawCAS(R_raw,D_raw,N_s,N_d,reg,regfile,date):
         
     return 
 
+
+def drawCASgif(R_raw,D_raw,reg,regfile,date):
+    
+    N_k = R_raw.size
+    
+    imageM = []
+    imageC = []
+    
+    for ii in range(1,N_k+1):
+        
+        print(ii,N_k)
+    
+        N_s = int(ii/7)
+        N_d = ii-7*N_s
+    
+        if N_d == 0:
+            R_week = np.zeros(N_s)
+            D_week = np.zeros(N_s)
+            T_week = np.linspace(0,N_s-1,N_s)
+        else:
+            R_week = np.zeros(N_s+1)
+            D_week = np.zeros(N_s+1)
+            T_week = np.linspace(0,N_s,N_s+1)
+        
+        R_week[0] = R_raw[6]
+        D_week[0] = D_raw[6]
+
+        for i in range (1,N_s):
+            R_week[i] = R_raw[7*(i+1)-1] - R_raw[7*i-1]       
+            D_week[i] = D_raw[7*(i+1)-1] - D_raw[7*i-1]    
+        
+        R_week_rem = R_raw[ii-1] - R_raw[7*N_s-1]   
+        D_week_rem = D_raw[ii-1] - D_raw[7*N_s-1]  
+    
+        if N_d == 0:
+        
+        #
+        # Novos casos por semana
+        #
+            plt.grid(False)    
+            plt.bar(T_week,R_week,snap=False)
+            plt.xlabel("Semanas desde o primeiro caso")
+            plt.ylabel("Casos")
+            plt.title("Casos por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+            plt.savefig(regfile+"CAS.jpg") 
+
+            plt.close()
+        
+        #
+        # Mortes por semana
+        #
+            plt.grid(False)    
+            plt.bar(T_week,D_week,snap=False)
+            plt.xlabel("Semanas desde o primeiro caso")
+            plt.ylabel("Mortes")
+            plt.title("Mortes por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+            plt.savefig(regfile+"MS.jpg",bbox_inches="tight") 
+
+            plt.close()
+            
+        else:
+        
+        #
+        # Novos casos por semana
+        #
+            plt.grid(False)    
+            plt.bar(T_week,R_week,snap=False)
+            plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([R_week_rem]))),color = "lightblue",snap=False)
+            plt.xlabel("Semanas desde o primeiro caso")
+            plt.ylabel("Casos")
+            plt.title("Casos por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+            plt.savefig(regfile+"CAS.jpg") 
+
+            plt.close() 
+            
+        #
+        # Mortes por semana
+        #
+            plt.grid(False)    
+            plt.bar(T_week,D_week,snap=False)
+            plt.bar(T_week,np.concatenate((np.zeros(N_s),np.array([D_week_rem]))),color = "lightblue",snap=False)
+            plt.xlabel("Semanas desde o primeiro caso")
+            plt.ylabel("Mortes")
+            plt.title("Mortes por semana - "+reg+" - "+date[6:8]+"/"+date[4:6]+"/"+date[0:4])
+            plt.savefig(regfile+"MS.jpg",bbox_inches="tight") 
+
+            plt.close()        
+            
+        imageM.append(imageio.imread(regfile+"MS.jpg"))
+        imageC.append(imageio.imread(regfile+"CAS.jpg"))
+        
+    imageio.mimsave(regfile+"MSa.gif",imageM, duration = 0.025, loop = 1)
+    imageio.mimsave(regfile+"CASa.gif",imageC, duration = 0.025, loop = 1)
+    
+    gifsicle = "gifsicle -i "+regfile+"MSa.gif --optimize=3 --colors 16  -o "+regfile+"MS.gif"
+    os.system(gifsicle)
+    
+    gifsicle = "gifsicle -i "+regfile+"CASa.gif --optimize=3 --colors 16  -o "+regfile+"CAS.gif"
+    os.system(gifsicle)
+    
+    rm = "rm "+regfile+"MSa.gif "+regfile+"CASa.gif"
+    os.system(rm)
+    
+        
+    return 
 
 
 
